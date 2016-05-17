@@ -1,1 +1,266 @@
-wef
+<!DOCTYPE html>
+<html>
+<head>
+	<title>su code generator</title>
+	<!-- Latest compiled and minified CSS -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+
+	<!-- Optional theme -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css" integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r" crossorigin="anonymous">
+	<script src="//npmcdn.com/github-api/dist/GitHub.bundle.min.js"></script>
+	<script type="text/javascript" src='sjcl.js'></script>
+	<style type="text/css">
+		body {
+			padding-top: 40px;
+			padding-bottom: 40px;
+			background-color: #fafafa;
+		}
+
+		.form-signin {
+			max-width: 330px;
+			padding: 15px;
+			margin: 0 auto;
+		}
+		.form-signin .form-signin-heading, .form-signin .checkbox {
+			margin-bottom: 10px;
+		}
+		.form-signin .checkbox {
+			font-weight: normal;
+		}
+		.form-signin .form-control {
+			position: relative;
+			height: auto;
+			-webkit-box-sizing: border-box;
+			        box-sizing: border-box;
+			padding: 10px;
+			font-size: 16px;
+		}
+		.form-signin .form-control:focus {
+			z-index: 2;
+		}
+		.form-signin input[type="email"] {
+			margin-bottom: -1px;
+			border-bottom-right-radius: 0;
+			border-bottom-left-radius: 0;
+		}
+		.form-signin input[type="password"] {
+			margin-bottom: 10px;
+			border-top-left-radius: 0;
+			border-top-right-radius: 0;
+		}
+	</style>
+	</head>
+<body>
+
+
+    <div class="container">
+
+      <form class="form-signin" id="login-form">
+        <h2 class="form-signin-heading">Please sign in to github</h2>
+        <label for="inputEmail" class="sr-only">Email address</label>
+        <input type="email" id="inputEmail" class="form-control" placeholder="Email address" required autofocus>
+        <label for="inputPassword" class="sr-only">Password</label>
+        <input type="password" id="inputPassword" class="form-control" placeholder="Password" required>
+        <button class="btn btn-lg btn-primary btn-block" type="submit">Sign in</button>
+      </form>
+
+      <div id='public-display' style="display: none;">
+      	  <h1>Actions</h1>
+	      <a href="#" id='view-file' target="_blank"><button id='read'>Read</button></a>
+	      <a href="#"><button id='write'>Create new codes</button></a>
+      </div>
+
+    </div> <!-- /container -->
+    <script type="text/javascript">
+
+    	function Codes () {
+    		this.raw_list = [];
+    		this.prefix_length = 2;
+    		this.code_length = 4;
+    	}
+
+    	Codes.prototype.insert = function(arr) { // array of string containing xxyyyyz, where xx is prefix, yyyy is unique code and z is the checksum
+    		arr.forEach(function (item) {
+    			if (item.length === 0) return;
+    			this.raw_list.push(item.slice(0, this.prefix_length + this.code_length));
+    		}.bind(this));
+    	};
+
+    	Codes.prototype.append = function(number_of_codes, prefix) {
+
+
+			function randomInt (min, max) {
+				return Math.floor(Math.random() * (max - min + 1)) + min;
+			}
+
+			function getRandomCode () {
+				var code = "";
+
+				for (var i = 0; i < this.code_length; i++) {
+					code += randomInt(1, 9).toString();
+				}
+
+				return code;
+			}
+
+
+			function generateCode () {
+
+				var code = "",
+					run = true;
+
+				while(run) {
+
+					code = prefix + getRandomCode.call(this);
+					run = this.raw_list.indexOf(code) > -1
+
+				}
+
+				return code;
+			}
+
+			for (var i = 0; i < number_of_codes; i++) {
+				this.raw_list.push(generateCode.call(this));
+			}
+
+			return this.raw_list;
+    	};
+
+    	Codes.prototype.parse = function() {
+			function getChecksum (code) { // only applied to yyyy
+				var checksum = 0;
+				var index = (code.length % 2) + 1;
+				for (var i = code.length - 1, digit, multiplier, product; i >= 0; i--) {
+					digit = code[i];
+
+
+					multiplier = ((index % 2) + 1);
+
+					product = (Number(digit) * multiplier);
+					
+					if (product > 9 ) {
+						product -= 9;
+					}
+
+					checksum += product;
+
+					index++;
+				}
+
+				return checksum;
+			}
+
+    		var parse_string = "";
+
+    		for (var i = 0; i < this.raw_list.length; i++) {
+
+				var checksum = getChecksum(this.raw_list[i].substr(this.prefix_length));
+				var controlnumber = ((checksum * 9) % 10).toString();
+
+				parse_string += this.raw_list[i] + controlnumber + "\r\n";
+    		}
+
+    		return parse_string;
+
+    	};
+
+
+	    document.getElementById('login-form').addEventListener('submit', function (ev) {
+	    	ev.preventDefault();
+	    	var email = document.getElementById('inputEmail').value,
+	    		pass = document.getElementById('inputPassword').value;
+
+
+	    	var PassPhrase, codes;
+
+	    	var ready_for_new = false;
+
+			var GH = new GitHub({
+				username: email,
+				password: pass
+			});
+
+			var Gist = GH.getGist('402276a00d39a752fde2cf6a401f1250');
+
+
+			function setReadURL() {
+				var objectURL = URL.createObjectURL(new Blob([codes.parse()], {type: 'text/plain'}));
+				document.getElementById('view-file').href = objectURL;
+			}
+
+			Gist.read(function (err, ob) {
+				if (err) {
+					alert('wrong password!');
+					location.reload();
+					return;
+				}
+				var file = ob.files['gistfile1.txt'];
+
+
+
+				PassPhrase = email.toLowerCase()+pass;
+
+
+				document.getElementById('login-form').style.display = 'none';
+				document.getElementById('public-display').style.display = 'block';
+
+
+				var content = sjcl.decrypt(PassPhrase, file.content);
+
+
+
+				ready_for_new = true;
+
+				codes = new Codes();
+				codes.insert(content.split("\r\n"));
+
+
+
+				setReadURL();
+
+			});
+
+			document.getElementById('write').addEventListener('click', function (ev) {
+
+				if ( ! ready_for_new ) return;
+
+				var no_codes = Number(prompt("Enter number of new codes to be generated"));
+				var year_prefix = prompt('Enter prefix');
+
+
+				if (confirm('Are you sure you want to add ' + no_codes + ' codes with the prefix of ' + year_prefix + '?')) {
+
+					codes.append(no_codes, year_prefix);
+
+					var new_file_content = codes.parse();
+
+					var new_gist_content = sjcl.encrypt(PassPhrase, new_file_content);
+
+					Gist.update({
+						"files": {
+							"gistfile1.txt": {
+								"content": new_gist_content
+							}
+						}
+					}, function (err, ob) {
+						alert('done!');
+						setReadURL();
+					});
+
+				}
+
+			});
+
+
+
+
+
+
+
+
+
+
+	    });
+    </script>
+</body>
+</html>
